@@ -30,3 +30,8 @@
     {%- endif -%}
 
 {% endmacro %}
+
+{% macro maxcompute__get_relations_by_pattern(schema_pattern, table_pattern, exclude='', database=target.database) %}
+    {% set relations = adapter.get_relations_by_pattern(schema_pattern, table_pattern, exclude, database) %}
+    {{ return(relations) }}
+{% endmacro %}
