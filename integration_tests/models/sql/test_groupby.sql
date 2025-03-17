@@ -1,3 +1,8 @@
+{{
+    config(
+        sql_header='SET odps.sql.groupby.position.alias=true;'
+    )
+}}
 with test_data as (
     
     select
@@ -15,7 +20,7 @@ grouped as (
 
     from test_data
     {{ dbt_utils.group_by(2) }}
-    
+
 )
 
 select * from grouped

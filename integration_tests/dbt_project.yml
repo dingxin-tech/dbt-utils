@@ -45,11 +45,11 @@ seeds:
         +column_types:
           date_value: timestamp
           float_value: float
-          int_value: integer
+          int_value: int
 
       data_width_bucket:
         +column_types:
-          num_buckets: integer
+          num_buckets: int
           min_value: float
           max_value: float
       
@@ -66,16 +66,16 @@ seeds:
 
       data_test_equality_floats_a:
         +column_types:
-          float_number: float
+          float_number: decimal
 
       data_test_equality_floats_columns_a:
         +column_types:
-          float_number: float
+          float_number: decimal
 
       data_test_equality_floats_b:
         +column_types:
-          float_number: float
+          float_number: decimal
 
       data_test_equality_floats_columns_b:
         +column_types:
-          float_number: float
+          float_number: decimal

@@ -1,3 +1,5 @@
+## Community-maintained fork of the original [dbt-utils]https://github.com/dbt-labs/dbt-utils/tree/main) package with extended support for [dbt-maxcompute](https://github.com/aliyun/dbt-maxcompute) (dbt adapter of Alibaba Cloud MaxCompute).
+
 This [dbt](https://github.com/dbt-labs/dbt) package contains macros that can be (re)used across dbt projects.
 
 ## Installation Instructions

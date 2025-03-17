@@ -14,7 +14,8 @@ with date_spine as (
     {% elif target.type == 'bigquery' %}
         select cast(date_day as date) as date_day
         from ({{ dbt_utils.date_spine("day", "'2018-01-01'", "'2018-01-10'") }})
-    
+    {% elif target.type == 'maxcompute' %}
+        {{ dbt_utils.date_spine("day", "DATE'2018-01-01'", "DATE'2018-01-10'") }}
     {% else %}
         {{ dbt_utils.date_spine("day", "'2018-01-01'", "'2018-01-10'") }}
     {% endif %}
