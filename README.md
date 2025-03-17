@@ -4,7 +4,14 @@ This [dbt](https://github.com/dbt-labs/dbt) package contains macros that can be 
 
 ## Installation Instructions
 
-Check [dbt Hub](https://hub.getdbt.com/dbt-labs/dbt_utils/latest/) for the latest installation instructions, or [read the docs](https://docs.getdbt.com/docs/package-management) for more information on installing packages.
+Include in `packages.yml`
+
+```yaml
+packages:
+  - git: "https://github.com/dingxin-tech/dbt-utils.git"
+    revision: main
+```
+**some micros require dbt-maxcompute >= v1.9.0-a9**
 
 ----
 
