@@ -13,6 +13,10 @@ packages:
 ```
 **some micros require dbt-maxcompute >= v1.9.0-a9**
 
+## Versioning
+The version naming convention follows the format of the dbt-utils version + "mc" suffix. 
+For example, "1.3.0-mc.1" indicates this version is modified from dbt-utils 1.3.0 and represents the first revision with mc (MaxCompute) support.
+
 ----
 
 <!--This table of contents is automatically generated. Any manual changes between the ts and te tags will be overridden!-->
