@@ -65,3 +65,24 @@ Arguments:
   {%- endfor -%}
 
 {%- endmacro %}
+
+{#
+MaxCompute 不接受无长度的 VARCHAR：`cast(x as varchar)` 直接被解析器拒绝
+（ODPS-0130161 Parse exception - invalid token ')'，本项探针 P8/Q3 已复现）。
+`unpivot` 的 cast_to 默认值正是 'varchar'，所以在 MaxCompute 上"按文档默认调用"必然失败。
+这里只把默认值落到引擎等价类型（{{ dbt.type_string() }}）；
+显式传入的 cast_to（含 varchar(n)、decimal、date 等）原样保留，不改变任何既有行为。
+#}
+{% macro maxcompute__unpivot(relation=none, cast_to='varchar', exclude=none, remove=none, field_name='field_name', value_name='value', quote_identifiers=False) -%}
+    {%- if cast_to | trim | lower == 'varchar' -%}
+        {%- set cast_to = dbt.type_string() -%}
+    {%- endif -%}
+    {{ return(dbt_utils.default__unpivot(
+        relation=relation,
+        cast_to=cast_to,
+        exclude=exclude,
+        remove=remove,
+        field_name=field_name,
+        value_name=value_name,
+        quote_identifiers=quote_identifiers)) }}
+{%- endmacro -%}

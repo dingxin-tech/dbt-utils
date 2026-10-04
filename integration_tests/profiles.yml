@@ -46,3 +46,11 @@ integration_tests:
       warehouse: "{{ env_var('SNOWFLAKE_WAREHOUSE') }}"
       schema: "{{ env_var('SNOWFLAKE_SCHEMA') }}"
       threads: 10
+
+    maxcompute:
+      type: "maxcompute"
+      project: "{{ env_var('MC_TEST_PROJECT') }}"
+      schema: "{{ env_var('MC_TEST_SCHEMA') }}"
+      endpoint: "{{ env_var('ODPS_ENDPOINT') }}"
+      auth_type: "chain"
+      threads: 4

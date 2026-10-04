@@ -1,0 +1,43 @@
+version: 2
+
+models:
+  - name: mc_union_col_widen
+    data_tests:
+      - dbt_utils.equality:
+          compare_model: ref('mc_expected_union_col_widen')
+          compare_columns: ['id', 'name', 'note']
+
+  - name: mc_unpivot_default_cast
+    data_tests:
+      - dbt_utils.equality:
+          compare_model: ref('mc_expected_unpivot_default_cast')
+          compare_columns: ['id', 'prop', 'val']
+
+  - name: mc_unpivot_quoted
+    data_tests:
+      - dbt_utils.equality:
+          compare_model: ref('mc_expected_unpivot_quoted')
+          compare_columns: ['customer_id', 'created_at', 'prop', 'val']
+
+  - name: mc_pivot_null_color
+    data_tests:
+      - dbt_utils.equality:
+          compare_model: ref('mc_expected_pivot_null_color')
+          compare_columns: ['size', 'red', 'blue']
+
+  - name: mc_date_spine_month
+    data_tests:
+      - dbt_utils.equality:
+          compare_model: ref('mc_expected_date_spine_month')
+
+  - name: mc_date_spine_day
+    data_tests:
+      - dbt_utils.equality:
+          compare_model: ref('mc_expected_date_spine_day')
+
+  # precision 对照的正向用例：0.1234/0.1235 vs 0.1234/0.1236 在第 2 位取整后应相等
+  - name: mc_precision_source
+    data_tests:
+      - dbt_utils.equality:
+          compare_model: ref('mc_precision_expected')
+          precision: 2

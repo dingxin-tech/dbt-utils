@@ -1459,3 +1459,76 @@ dbt_utils.default__safe_add
 ## Code of Conduct
 
 Everyone interacting in the dbt project's codebases, issue trackers, chat rooms, and mailing lists is expected to follow the [PyPA Code of Conduct](https://www.pypa.io/en/latest/code-of-conduct/).
+
+----
+
+## MaxCompute notes & limitations
+
+Everything below is measured against a real MaxCompute project (odps2 type system + `odps.sql.decimal.odps2`,
+i.e. the hints `dbt-maxcompute` sends by default), not read out of documentation. The
+`integration_tests/models/maxcompute` + `integration_tests/tests/maxcompute` suite (`tag:maxcompute`) pins each
+of these as an executable contract, so a change that breaks one of them fails a build instead of a wiki page.
+
+* **`unpivot()` cannot use its documented default `cast_to` on MaxCompute.** `cast(x as varchar)` — VARCHAR
+  without a length — is rejected by the parser (`ODPS-0130161 Parse exception - invalid token ')'`), and
+  `varchar` is exactly what `unpivot(cast_to=...)` defaults to, so the documented call form fails.
+  `maxcompute__unpivot` maps only that default to `{{ dbt.type_string() }}` (`STRING`); any explicitly passed
+  `cast_to` (including `varchar(n)`, `decimal`, `date`) is passed through unchanged.
+* **Identifiers are case-folded.** Server metadata returns lowercase column names, so `unpivot()` emits
+  `field_name` values like `status`/`segment` even when the source column was created as `sTaTuS`/`SEGMENT`,
+  and `quote_identifiers=True` does not preserve case (MaxCompute quotes with backticks). The upstream
+  `test_unpivot_quote` expectation is case-sensitive and therefore disabled on MaxCompute; `mc_unpivot_quoted`
+  replaces it with the folded contract instead of relaxing the assertion.
+* **`union_relations()` must widen, because truncation is silent.** `cast('abcdefghijkl' as varchar(5))`
+  returns `abcde` — no error, no warning. `mc_union_col_widen` unions a `varchar(5)` relation *first* with a
+  `varchar(10)` relation and asserts both that rows align by column name across differing column order and
+  that the 9-character value survives, which holds with the current `string_size()` superset logic.
+* **`date_spine()` does not emit the right bound, and month arithmetic is calendar-based.**
+  Row count equals `datediff(start, end, datepart)`; for months MaxCompute counts year/month index
+  differences and ignores the day (`2026-01-31` → `2026-04-30` is 3), while `dateadd(..., 'month')` clamps to
+  the month end. A month spine over that window therefore yields `2026-01-31`, `2026-02-28`, `2026-03-31`.
+  Both semantics are asserted by `mc_date_spine_month` / `mc_assert_date_spine_month`.
+* **`date_spine()` with `start == end` (or an inverted window) does not compile** — `get_powers_of_two()`
+  raises `upper bound must be positive` because the row count is 0. This is package behaviour on every
+  adapter, not a MaxCompute difference; build single-date spines outside `date_spine()`.
+* **`generate_series()` relies on the adapter's cartesian hint.** The default implementation cross joins a
+  2-row set to itself `n` times, which MaxCompute rejects (`ODPS-0130252`) unless
+  `odps.sql.allow.cartesian=true` is set — `dbt-maxcompute` sets it globally, so it works through dbt but not
+  when you paste the compiled SQL into `odpscmd`.
+* **`generate_surrogate_key()` value contract.** Each field becomes `coalesce(cast(field as string),
+  '_dbt_utils_surrogate_key_null_')` joined with `-`, then `md5()`. Measured renderings that the tests rely
+  on: `cast(0.0 as string)` = `0.0`, `cast(-3 as string)` = `-3`, `cast(cast('12.340' as decimal(10,3)) as
+  string)` = `12.34` (trailing scale zeros dropped, so a `decimal(10,3)` and a `decimal(10,2)` of the same
+  value hash identically), and boolean columns go through `dbt.cast_bool_to_text()`, which MaxCompute renders
+  as `true`/`false` (lowercase). `NULL` and `''` hash differently, and `concat()` returns `NULL` if any
+  argument is `NULL` — the per-field `coalesce` is load-bearing, not decoration.
+* **The `-` separator does not disambiguate field boundaries.** `generate_surrogate_key(['x-y'])` and
+  `generate_surrogate_key(['x','y'])` produce the same key. This is upstream semantics on all adapters;
+  changing the separator would silently break every existing key, so it is pinned by
+  `mc_assert_surrogate_key_boundary_documented` and documented here rather than "fixed". If your data can
+  contain `-` in a key column, don't rely on the hash being collision-free across different field splits.
+* **`equality(..., precision=N)` works and is actually applied.** `{{ dbt.type_numeric() }}` renders as
+  `DECIMAL(28, 6)` on MaxCompute, so the rounding branch compiles. `mc_precision_source` vs
+  `mc_precision_expected` differ only in the 4th decimal: the `precision: 2` test passes while
+  `mc_assert_precision_except_differs` proves the same pair is *not* equal without rounding.
+* **Forms that look Postgres-only but are accepted:** `select` without `FROM`, `order by` without `limit`,
+  parenthesised `union all` branches, `EXCEPT`, `row_number() over (order by 1)`, and
+  `select * from (values ...) as t(...)`. Rejected forms are covered above (`varchar` without length) and in
+  the generic-test helpers (`HAVING` without an aggregate-safe shape and positional `group by 1` are avoided
+  in the MaxCompute suite).
+
+### Running the MaxCompute contract suite
+
+`integration_tests/profiles.yml` has a `maxcompute` target that reads everything from the environment and
+holds no credentials (`auth_type: chain` picks up `ODPS_ACCESS_ID` / `ODPS_ACCESS_KEY`):
+
+```bash
+cd integration_tests
+export MC_TEST_PROJECT=<your-three-tier-project>   # schema model requires a 3-tier project
+export MC_TEST_SCHEMA=<your-test-schema>
+export ODPS_ENDPOINT=<your-endpoint>
+dbt deps
+dbt build -t maxcompute --select tag:maxcompute --full-refresh
+```
+
+The suite creates tables/views only inside `MC_TEST_SCHEMA`; drop that schema's objects after a run.
